@@ -8,7 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "username" , "password","phone_number", "image" , "location" , "date_birth" ]
+        fields = ["id", "email", "username" , "password","phoneNumber", "image" , "location" , "dateBirth",'isDoctor' ]
         
     def validate(self, attrs):
 
@@ -30,3 +30,34 @@ class UserSerializer(serializers.ModelSerializer):
 
 
         return user
+
+class UserIISerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(max_length=80)
+    username = serializers.CharField(max_length=45)
+    password = serializers.CharField(min_length=8, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "username" , "password","phoneNumber", "image" , "location" , "dateBirth" ]
+
+class MainPageUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'image']
+
+
+class DoctorLiveSerializer(serializers.ModelSerializer):
+    price = serializers.SerializerMethodField()
+    isLiked = serializers.SerializerMethodField()
+    class Meta:
+        model = Doctor
+        fields = ['id','username','image' ,'isLiked', 'isLive' , 'views', 'avgRating', 'price', 'specialist']
+    
+    def get_price(self,obj):
+        return obj.price if obj.price != None else 0
+    def get_isLiked(self,obj):
+        user = self.context.get('user')
+        return True if user in obj.likes.all() else False
+
+
+

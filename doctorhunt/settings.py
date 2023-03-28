@@ -41,8 +41,15 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "users",
+    'main',
+    'django_filters',
+
+
    
 ]
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+}
 SITE_ID = 1
 
 AUTH_USER_MODEL = "users.User"
@@ -138,3 +145,12 @@ STATIC_ROOT = os.path.join(BASE_DIR , 'static')
 
 MEDIA_ROOT = os.path.join(BASE_DIR , 'media')
 MEDIA_URL = '/media/'
+
+
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'DoctorHuntApp@gmail.com'
+EMAIL_HOST_PASSWORD = 'bqjpjhrzsouhcvdv' #tomato_2211
