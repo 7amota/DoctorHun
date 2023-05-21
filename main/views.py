@@ -1,18 +1,16 @@
-from users.serializers import *
-from users.models import *
-from rest_framework import generics , mixins , viewsets, status
+from django.db import connection
+
+from rest_framework import generics , mixins , viewsets, status 
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import AllowAny , IsAdminUser , IsAuthenticated
-from .permissions import IsDoctor
 from rest_framework.response import Response
-from .serializer import *
-import requests
 from rest_framework import filters
-def log(message):
-    bot_token = "6107600815:AAFIafRsJCNiw4nHBfUx7RXepZ7eujykhSw"
-    groub_id = 1409161603
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={groub_id}&parse_mode=Markdown&text={message}"
-    requests.get(url)
+
+from users.serializers import *
+from users.models import *
+from .permissions import IsDoctor, CustomPermissionsForAppointements, CheckAuthor
+from .serializers import *
+from users.logs import log
 
 
 class LiveDoctor(generics.CreateAPIView):
@@ -55,7 +53,7 @@ class DoctroView(generics.CreateAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
-        doc = Doctor.objects.get(pk=request.data.get('doctor_id'))
+        doc = Doctor.objects.get(pk=request.data.get('doctorId'))
         user = request.user
         try:
 
@@ -88,7 +86,7 @@ class Rate(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
         user = request.user
-        doctorid = request.data.get('doctorid')
+        doctorid = request.data.get('doctorId')
         doctor = Doctor.objects.get(pk=doctorid)
         try:
            rata = RatingSystem.objects.get(user=user , doctor=doctor)
@@ -122,7 +120,7 @@ class Like(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
         user = User.objects.get(pk=request.user.id)
-        doctorid = request.data.get('doctorid')
+        doctorid = request.data.get('doctorId')
         doctor = Doctor.objects.get(pk=doctorid)
         if user in doctor.likes.all():
             doctor.likes.remove(user)
@@ -157,16 +155,20 @@ class Like(generics.ListCreateAPIView):
 class MainPage(generics.ListAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        print(f"Queries Count {len(connection.queries)}")
+        return response
     
     def get(self, request, *args, **kwargs):
         user = request.user
-        doctor = Doctor.objects.all()
-        userData = UserSerializer(user)
+        doctor = Doctor.objects
+        userData = UserSerializer(user, context={'request':request})
         doc = doctor.filter(isLive=True)
         liveData = DoctorLiveSerializer(doc , many=True, context={'user':request.user, 'request':request})
         pouplarDoctor = doctor.order_by("-views")
         pouplarDoctorData = DoctorLiveSerializer(pouplarDoctor, many=True, context={'user':request.user, 'request':request})
-        featureDoctors = DocViews.objects.filter(user=user)
+        featureDoctors = DocViews.objects.select_related('user').filter(user=user)
         featureDoctorSerializer = ViewsSerializer(featureDoctors , many=True, context={'user':request.user, 'request':request} )
         message = {
             'userData':userData.data,
@@ -181,4 +183,25 @@ class DoctorsList(generics.ListAPIView):
     queryset = Doctor.objects.all()
     serializer_class = DoctorLiveSerializer
     filter_backends = [filters.SearchFilter]
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
     search_fields= ['^username']
+
+class Appointemtns(generics.ListCreateAPIView):
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    def create(self, request, *args, **kwargs):
+        doctor_id = request.data.get('doctor')
+        doctor = Doctor.objects.get(pk=doctor_id)
+        serializer = self.serializer_class(data=request.data, context={'request':request})
+        if serializer.is_valid():
+            serializer.save(doctor=doctor)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+class AppointemntsRUD(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [CheckAuthor]
+    lookup_field = 'id'

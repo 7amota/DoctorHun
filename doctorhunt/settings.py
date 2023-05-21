@@ -9,10 +9,12 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
-
+import os
+from dotenv import load_dotenv
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -20,35 +22,40 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-f7q9rt8*!o^mq*9z3pukoeytl=3-=66jt94ydok6!d=66e#v^)'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
-
+SECRET_KEY = os.environ.get('SECRET_KEY')
 # Application definition
 
-INSTALLED_APPS = [
-    "jazzmin",
+DEFAULT_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-    "rest_framework",
-    "rest_framework.authtoken",
+    'django.contrib.staticfiles', 
+]
+LOCAL_APPS = [
     "users",
     'main',
+]
+THIRD_PARTY_APPS = [
+    "debug_toolbar",
+    "jazzmin",
+    "rest_framework",
+    "rest_framework.authtoken",
     'django_filters',
 
-
-   
 ]
+INSTALLED_APPS = THIRD_PARTY_APPS + DEFAULT_APPS + LOCAL_APPS
+
 REST_FRAMEWORK = {
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+
 }
 SITE_ID = 1
 
@@ -59,12 +66,17 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
+INTERNAL_IPS = [
+    # ...
+    "127.0.0.1",
+    # ...
+]
 ROOT_URLCONF = 'doctorhunt.urls'
 
 TEMPLATES = [
@@ -137,7 +149,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-import os
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR , 'static')
@@ -152,5 +163,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'DoctorHuntApp@gmail.com'
-EMAIL_HOST_PASSWORD = 'bqjpjhrzsouhcvdv' #tomato_2211
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")

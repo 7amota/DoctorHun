@@ -9,5 +9,7 @@ path("logout/", views.LogoutView.as_view()),
 path("update/", views.UpdateUser.as_view(),),
 path("sendemail/", views.ResetRequest.as_view(),),
 path("resetpassword/", views.ResetPassword.as_view(),),
-
+path("google/", views.GoogleView.as_view(),),
+path("doc/register/", views.CreateDoc.as_view(),),
+# path("statistics/", views.Statistics.as_view()),
 ]

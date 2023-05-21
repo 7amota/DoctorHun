@@ -1,23 +1,66 @@
+from django.contrib.auth.hashers import make_password
+from django.core.mail import send_mail, EmailMessage
+from django.db.models import Sum, Count , Avg
 from django.shortcuts import render
 from django.contrib.auth import authenticate
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics, mixins, viewsets
 from rest_framework.request import Request
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.authtoken.serializers import AuthTokenSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.views import APIView
+from rest_framework.utils import json
+
 from .models import *
 from .serializers import *
-from django.core.mail import send_mail, EmailMessage
+from .logs import log
+
 import random
 import requests
-def log(message):
-    bot_token = "6107600815:AAFIafRsJCNiw4nHBfUx7RXepZ7eujykhSw"
-    groub_id = 1409161603
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={groub_id}&parse_mode=Markdown&text={message}"
-    requests.get(url)
+
+
+
+
+class GoogleView(APIView):
+    def post(self, request):
+        payload = {'access_token': request.data.get("token")}  # validate the token
+        r = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', params=payload)
+        data = json.loads(r.text)
+
+        if 'error' in data:
+            content = {'message': 'wrong google token / this google token is already expired.'}
+            return Response(content)
+
+        # create user if not exist
+        try:
+            user = User.objects.get(email=data['email'])
+            serializer= UserSerializer(user)
+            print(serializer.instance)
+            token, _ = Token.objects.get_or_create(user=serializer.instance)
+            response = {
+                'status':1,
+                'message':"user Logged in",
+                'data':serializer.data,
+                'token':token.key
+            }
+            return Response(response)
+        except:
+            userf = User.objects.create_user(email=data['email'], password=make_password(BaseUserManager().make_random_password()) , username='lol')
+            serializef= UserSerializer(userf)
+            tokenf, _ = Token.objects.get_or_create(user=serializef.instance)
+            responsef = {
+                'status':1,
+                'data':serializef.data,
+                'token':tokenf.key
+            }
+            return Response(responsef)
+
+
+
 
 
 
@@ -26,20 +69,28 @@ class RegiserView(generics.CreateAPIView):
     serializer_class = UserSerializer
     def post(self, request:Request, *args, **kwargs):
         data = request.data
-        serializer = self.serializer_class(data=data, context={"request":request})
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            token, _ = Token.objects.get_or_create(user=serializer.instance)
-            print(serializer.instance)
-            res = {
-                "status":1,
-                "message":"Account Created .",
-                "data":serializer.data,
-                "token":token.key
+        email = User.objects.filter(email=data['email']).exists()
+        if email == False:
+            serializer = self.serializer_class(data=data, context={"request":request})
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+                token, _ = Token.objects.get_or_create(user=serializer.instance)
+                print(serializer.instance)
+                res = {
+                    "status":1,
+                    "message":"Account Created .",
+                    "data":serializer.data,
+                    "token":token.key
 
+                }
+                log(message=res)
+                return Response(res , status.HTTP_200_OK)
+        else:
+            message ={
+                'status':0,
+                'message':'Email had been used , try another one'
             }
-            log(message=res)
-            return Response(res , status.HTTP_200_OK)
+            return Response(message, status.HTTP_200_OK)
 
 class LoginView(generics.CreateAPIView):
     serializer_class = AuthTokenSerializer
@@ -78,14 +129,14 @@ class LoginView(generics.CreateAPIView):
                     responsem,status.HTTP_200_OK
 
                 )
-                
+
 
 
             except:
                 return Response({
                 "status":0,
                 "message": "Invalid email or password"
-                
+
                 }, status.HTTP_404_NOT_FOUND)
 
 
@@ -95,7 +146,7 @@ class LogoutView(generics.CreateAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
     def post(self, request, *args, **kwargs):
-        user = request.user 
+        user = request.user
         token = Token.objects.get(user=user)
         try:
             token.delete()
@@ -121,7 +172,7 @@ class UpdateUser(generics.RetrieveUpdateAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         data = self.serializer_class(user)
-    
+
         return Response(data.data , status.HTTP_200_OK)
     def put(self, request, *args, **kwargs):
         try:
@@ -159,14 +210,14 @@ class ResetRequest(generics.CreateAPIView):
                 "status":1,
                 "otp":user.otp,
 
-                'massage': 'Success Message'}
+                'message': 'Done .'}
             log(message=message)
 
             return Response(message, status=status.HTTP_200_OK)
         else:
             message = {
-                "status":1,
-                'massage': 'Some Error Message'}
+                "status":0,
+                'message': 'Error like the email is not valid .'}
             return Response(message, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -184,7 +235,7 @@ class ResetPassword(generics.UpdateAPIView):
 
             number_list = [x for x in range(10)]  # Use of list comprehension
             code_items_for_otp = []
-        
+
             for i in range(4):
                 num = random.choice(number_list)
                 code_items_for_otp.append(num)
@@ -209,3 +260,62 @@ class ResetPassword(generics.UpdateAPIView):
 
             return Response(les)
 
+
+class CreateDoc(generics.CreateAPIView):
+    queryset = Doctor.objects.all()
+    serializer_class = DoctorCreationClass
+    def post(self, request:Request, *args, **kwargs):
+        data = request.data
+        email = User.objects.filter(email=data['email']).exists()
+        if email == False:
+            serializer = self.serializer_class(data=data, context={"request":request})
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+                token, _ = Token.objects.get_or_create(user=serializer.instance)
+                print(serializer.instance)
+                res = {
+                    "status":1,
+                    "message":"Account Created .",
+                    "data":serializer.data,
+                    "token":token.key
+
+                }
+                log(message=res)
+                return Response(res , status.HTTP_200_OK)
+        else:
+            message ={
+                'status':0,
+                'message':'Email had been used , try another one'
+            }
+            return Response(message, status.HTTP_200_OK)
+
+class Statistics(generics.ListAPIView):
+    serializer_class = UserSerializer
+    authentication_classes = [TokenAuthentication]
+    permissions_classess = [IsAdminUser]
+    def get(self, request, *args, **kwargs):
+        users = User.objects.all()
+        doctorAccounts = Doctor.objects.all()
+        livesDoctors = Doctor.objects.filter(isLive = True).count()
+        DViews = DocViews.objects.all().count()
+        DocSpecialist = Doctor.objects.values_list('specialist')
+        liks=  Doctor.objects.filter(pk=3).values('likes')
+        
+        print(liks)
+        lis = []
+        for i in DocSpecialist:
+            for x in i:
+                if x not in lis:
+                    lis.append(x)
+        
+
+        res = {
+            'accountsCount': len(users),
+            'usersAccounts': len(users) - len(doctorAccounts),
+            'doctorAccounts': len(doctorAccounts),
+            'livesDoctors':livesDoctors,
+            'SumOfDoctorsViews':DViews,
+            "ExistDocSpecialist":lis, # specialist is loop 
+
+        }
+        return Response(res,status.HTTP_200_OK)
