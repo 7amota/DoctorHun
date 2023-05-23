@@ -203,5 +203,5 @@ class AppointemntsRUD(generics.RetrieveUpdateDestroyAPIView):
     queryset = Appointment.objects.all()
     serializer_class = AppointmentSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [CheckAuthor]
+    permission_classes = [CheckAuthor, IsAuthenticated]
     lookup_field = 'id'
