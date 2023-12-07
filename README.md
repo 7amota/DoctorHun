@@ -11,8 +11,6 @@
 - [Backend (Django)](#backend-django)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Introduction
 
@@ -54,3 +52,10 @@ DoctorHunt's backend is built using Django, a high-level Python web framework. B
    ```bash
    git clone https://github.com/7amota/DoctorHunt.git
    cd DoctorHunt
+
+## Installation
+pip install -r requirements.txt
+python manage.py migrate
+
+## Usage
+python manager.py runserver
